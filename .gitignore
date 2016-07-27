@@ -1,0 +1,7 @@
+~* 
+*.so 
+*.log
+qpdfview.pro.user
+qpdfview
+Makefile
+Makefile.*
