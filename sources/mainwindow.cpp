@@ -3077,6 +3077,19 @@ void MainWindow::createDocks()
 
     m_propertiesDock->setWidget(m_propertiesView);
 
+	// verify signature
+    m_detailsSignatureDock = createDock(tr("&Verify-Signature"), QLatin1String("verifySignature-Dock"), QKeySequence(Qt::Key_F12));
+
+    m_detailsSignatureView = new QTableView(this);
+    m_detailsSignatureView->setAlternatingRowColors(true);
+    m_detailsSignatureView->setTabKeyNavigation(false);
+    m_detailsSignatureView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_detailsSignatureView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+
+    connect(m_detailsSignatureView->horizontalHeader(), SIGNAL(sectionCountChanged(int,int)), SLOT(on_detailsSignatureView_sectionCountChanged()));
+
+    m_detailsSignatureDock->setWidget(m_detailsSignatureView);
+
     // thumbnails
 
     m_thumbnailsDock = createDock(tr("Thumb&nails"), QLatin1String("thumbnailsDock"), QKeySequence(Qt::Key_F8));
