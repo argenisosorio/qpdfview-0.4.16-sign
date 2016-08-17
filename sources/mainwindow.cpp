@@ -2038,6 +2038,106 @@ void MainWindow::on_outline_clicked(const QModelIndex& index)
 
 void MainWindow::on_properties_sectionCountChanged()
 {
+    qDebug("on_properties_sectionCountChanged()");
+    if(m_propertiesView->horizontalHeader()->count() > 0)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+
+        m_propertiesView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+
+#else
+
+        m_propertiesView->horizontalHeader()->setResizeMode(0, QHeaderView::Stretch);
+
+#endif // QT_VERSION
+    }
+
+    if(m_propertiesView->horizontalHeader()->count() > 1)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+
+        m_propertiesView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+
+#else
+
+        m_propertiesView->horizontalHeader()->setResizeMode(1, QHeaderView::Stretch);
+
+#endif // QT_VERSION
+    }
+
+    m_propertiesView->horizontalHeader()->setVisible(false);
+
+
+    if(m_propertiesView->verticalHeader()->count() > 0)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+
+        m_propertiesView->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+
+#else
+
+        m_propertiesView->verticalHeader()->setResizeMode(QHeaderView::ResizeToContents);
+
+#endif // QT_VERSION
+    }
+
+    m_propertiesView->verticalHeader()->setVisible(false);
+}
+
+
+void MainWindow::on_detailsSignatureView_sectionCountChanged()
+{
+    qDebug("Entro a on_detailsSignatureView_sectionCountChanged()");
+
+    if(m_detailsSignatureView->horizontalHeader()->count() > 0)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+
+        m_detailsSignatureView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+
+#else
+
+        m_detailsSignatureView->horizontalHeader()->setResizeMode(0, QHeaderView::Stretch);
+
+#endif // QT_VERSION
+    }
+
+    if(m_detailsSignatureView->horizontalHeader()->count() > 1)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+
+        m_detailsSignatureView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+
+#else
+
+        m_detailsSignatureView->horizontalHeader()->setResizeMode(1, QHeaderView::Stretch);
+
+#endif // QT_VERSION
+    }
+
+    m_detailsSignatureView->horizontalHeader()->setVisible(false);
+
+
+    if(m_detailsSignatureView->verticalHeader()->count() > 0)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+
+        m_detailsSignatureView->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+
+#else
+
+        m_detailsSignatureView->verticalHeader()->setResizeMode(QHeaderView::ResizeToContents);
+
+#endif // QT_VERSION
+    }
+    qDebug("Antes de salir");
+    m_detailsSignatureView->verticalHeader()->setVisible(false);
+    m_detailsSignatureView->show();
+    qDebug("saliendo");
+}
+
+void MainWindow::on_properties_sectionCountChanged()
+{
     if(m_propertiesView->horizontalHeader()->count() > 0)
     {
 #if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
