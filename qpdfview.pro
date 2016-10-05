@@ -3,6 +3,7 @@ include(qpdfview.pri)
 TEMPLATE = subdirs
 CONFIG += ordered
 
+
 !without_pdf {
     SUBDIRS += pdf-plugin.pro
     application.pro.depends = pdf-plugin.pro

@@ -74,6 +74,109 @@ along with qpdfview.  If not, see <http://www.gnu.org/licenses/>.
 #include "bookmarkmenu.h"
 #include "bookmarkdialog.h"
 #include "database.h"
+#include "Form.h"
+
+
+
+//********************************* POPPLER
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <string.h>
+#include <time.h>
+
+//#include "config.h"
+
+#include <poppler-config.h>
+
+#include "Object.h"
+#include "Array.h"
+#include "Page.h"
+#include "PDFDoc.h"
+#include "PDFDocFactory.h"
+#include "Error.h"
+#include "GlobalParams.h"
+#include "SignatureInfo.h"
+
+
+/*const char * getReadableSigState(SignatureValidationStatus sig_vs)
+{
+  switch(sig_vs) {
+    case SIGNATURE_VALID:
+      return "Signature is Valid.";
+
+    case SIGNATURE_INVALID:
+      return "Signature is Invalid.";
+
+    case SIGNATURE_DIGEST_MISMATCH:
+      return "Digest Mismatch.";
+
+    case SIGNATURE_DECODING_ERROR:
+      return "Document isn't signed or corrupted data.";
+
+    case SIGNATURE_NOT_VERIFIED:
+      return "Signature has not yet been verified.";
+
+    default:
+      return "Unknown Validation Failure.";
+  }
+}
+
+const char * getReadableCertState(CertificateValidationStatus cert_vs)
+{
+  switch(cert_vs) {
+    case CERTIFICATE_TRUSTED:
+      return "Certificate is Trusted.";
+
+    case CERTIFICATE_UNTRUSTED_ISSUER:
+      return "Certificate issuer isn't Trusted.";
+
+    case CERTIFICATE_UNKNOWN_ISSUER:
+      return "Certificate issuer is unknown.";
+
+    case CERTIFICATE_REVOKED:
+      return "Certificate has been Revoked.";
+
+    case CERTIFICATE_EXPIRED:
+      return "Certificate has Expired";
+
+    case CERTIFICATE_NOT_VERIFIED:
+      return "Certificate has not yet been verified.";
+
+    default:
+      return "Unknown issue with Certificate or corrupted data.";
+  }
+}
+
+char *getReadableTime(time_t unix_time)
+{
+  char * time_str = (char *) gmalloc(64);
+  strftime(time_str, 64, "%b %d %Y %H:%M:%S", localtime(&unix_time));
+  return time_str;
+}*/
+
+//static GBool printVersion = gFalse;
+//static GBool printHelp = gFalse;
+//static GBool dontVerifyCert = gFalse;
+
+//static const ArgDesc argDesc[] = {
+//  {"-nocert", argFlag,     &dontVerifyCert,     0,
+//   "don't perform certificate validation"},
+
+//  {"-v",      argFlag,     &printVersion,  0,
+//   "print copyright and version info"},
+//  {"-h",      argFlag,     &printHelp,     0,
+//   "print usage information"},
+//  {"-help",   argFlag,     &printHelp,     0,
+//   "print usage information"},
+//  {"-?",      argFlag,     &printHelp,     0,
+//   "print usage information"},
+//  {NULL}
+//};
+
+
+//********************************* POPPLER
 
 namespace
 {
@@ -299,6 +402,7 @@ QSize MainWindow::sizeHint() const
 
 QMenu* MainWindow::createPopupMenu()
 {
+    qDebug("createPopupMenu()");
     QMenu* menu = new QMenu();
 
     menu->addAction(m_fileToolBar->toggleViewAction());
@@ -309,6 +413,7 @@ QMenu* MainWindow::createPopupMenu()
     menu->addAction(m_propertiesDock->toggleViewAction());
     menu->addAction(m_thumbnailsDock->toggleViewAction());
     menu->addAction(m_bookmarksDock->toggleViewAction());
+    menu->addAction(m_detailsSignatureDock->toggleViewAction());
 
     return menu;
 }
@@ -327,6 +432,7 @@ void MainWindow::show()
         s_database->restoreBookmarks();
     }
 }
+
 
 bool MainWindow::open(const QString& filePath, int page, const QRectF& highlight, bool quiet)
 {
@@ -503,6 +609,8 @@ void MainWindow::on_tabWidget_currentChanged(int index)
     m_openContainingFolderAction->setEnabled(hasCurrent);
     m_refreshAction->setEnabled(hasCurrent);
     m_printAction->setEnabled(hasCurrent);
+    m_verify_signature->setEnabled(hasCurrent);
+    //m_detailsSignatureDock->setEnabled(hasCurrent);
 
     m_previousPageAction->setEnabled(hasCurrent);
     m_nextPageAction->setEnabled(hasCurrent);
@@ -567,6 +675,7 @@ void MainWindow::on_tabWidget_currentChanged(int index)
 
     if(hasCurrent)
     {
+        qDebug("if(hasCurrent)");
         m_saveCopyAction->setEnabled(currentTab()->canSave());
         m_saveAsAction->setEnabled(currentTab()->canSave());
 
@@ -579,6 +688,8 @@ void MainWindow::on_tabWidget_currentChanged(int index)
         m_outlineView->setModel(currentTab()->outlineModel());
         m_propertiesView->setModel(currentTab()->propertiesModel());
         m_bookmarksView->setModel(bookmarkModelForCurrentTab());
+        m_detailsSignatureView->setModel(view_table_verify_signature());
+
 
         m_thumbnailsView->setScene(currentTab()->thumbnailsScene());
         currentTab()->setThumbnailsViewportSize(m_thumbnailsView->viewport()->size());
@@ -2037,6 +2148,7 @@ void MainWindow::on_outline_clicked(const QModelIndex& index)
 
 void MainWindow::on_properties_sectionCountChanged()
 {
+    qDebug("on_properties_sectionCountChanged()");
     if(m_propertiesView->horizontalHeader()->count() > 0)
     {
 #if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
@@ -2082,8 +2194,16 @@ void MainWindow::on_properties_sectionCountChanged()
     m_propertiesView->verticalHeader()->setVisible(false);
 }
 
+
+void MainWindow::on_detailsSignatureView_sectionCountChanged()
+{
+    qDebug("Entro a on_detailsSignatureView_sectionCountChanged()");
+}
+
+
 void MainWindow::on_thumbnails_dockLocationChanged(Qt::DockWidgetArea area)
 {
+    qDebug("on_thumbnails_dockLocationChanged");
     for(int index = 0, count = m_tabWidget->count(); index < count; ++index)
     {
         tab(index)->setThumbnailsOrientation(area == Qt::TopDockWidgetArea || area == Qt::BottomDockWidgetArea ? Qt::Horizontal : Qt::Vertical);
@@ -2092,6 +2212,7 @@ void MainWindow::on_thumbnails_dockLocationChanged(Qt::DockWidgetArea area)
 
 void MainWindow::on_thumbnails_verticalScrollBar_valueChanged(int value)
 {
+    qDebug("on_thumbnails_verticalScrollBar_valueChanged");
     Q_UNUSED(value);
 
     if(m_thumbnailsView->scene() != 0)
@@ -2110,6 +2231,7 @@ void MainWindow::on_thumbnails_verticalScrollBar_valueChanged(int value)
 
 void MainWindow::on_bookmarks_sectionCountChanged()
 {
+    qDebug("on_bookmarks_sectionCountChanged");
     if(m_bookmarksView->horizontalHeader()->count() > 0)
     {
 #if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
@@ -2169,6 +2291,7 @@ void MainWindow::on_bookmarks_clicked(const QModelIndex& index)
 
 void MainWindow::on_bookmarks_contextMenuRequested(const QPoint& pos)
 {
+    qDebug("on_bookmarks_contextMenuRequested");
     QMenu menu;
 
     menu.addActions(QList< QAction* >() << m_previousBookmarkAction << m_nextBookmarkAction);
@@ -2801,6 +2924,7 @@ void MainWindow::createActions()
     m_saveAsAction = createAction(tr("Save &as..."), QLatin1String("saveAs"), QLatin1String("document-save-as"), QKeySequence::SaveAs, SLOT(on_saveAs_triggered()));
     m_printAction = createAction(tr("&Print..."), QLatin1String("print"), QLatin1String("document-print"), QKeySequence::Print, SLOT(on_print_triggered()));
     m_exitAction = createAction(tr("E&xit"), QLatin1String("exit"), QIcon::fromTheme("application-exit"), QKeySequence::Quit, SLOT(close()));
+    m_verify_signature = createAction(tr("&Verify Signature..."), QLatin1String("Verify signature"), QLatin1String("document-print"), QKeySequence(), SLOT(on_verify_signature()));
 
     // edit
 
@@ -2916,7 +3040,7 @@ QToolBar* MainWindow::createToolBar(const QString& text, const QString& objectNa
 void MainWindow::createToolBars()
 {
     m_fileToolBar = createToolBar(tr("&File"), QLatin1String("fileToolBar"), s_settings->mainWindow().fileToolBar(),
-                                  QList< QAction* >() << m_openAction << m_openInNewTabAction << m_openContainingFolderAction << m_refreshAction << m_saveCopyAction << m_saveAsAction << m_printAction);
+                                  QList< QAction* >() << m_openAction << m_openInNewTabAction << m_openContainingFolderAction << m_refreshAction << m_saveCopyAction << m_saveAsAction << m_printAction << m_verify_signature);
 
     m_editToolBar = createToolBar(tr("&Edit"), QLatin1String("editToolBar"), s_settings->mainWindow().editToolBar(),
                                   QList< QAction* >() << m_currentPageAction << m_previousPageAction << m_nextPageAction << m_firstPageAction << m_lastPageAction << m_jumpToPageAction << m_searchAction << m_jumpBackwardAction << m_jumpForwardAction << m_copyToClipboardModeAction << m_addAnnotationModeAction);
@@ -3043,7 +3167,7 @@ void MainWindow::createSearchDock()
 void MainWindow::createDocks()
 {
     // outline
-
+    qDebug("createDocks()");
     m_outlineDock = createDock(tr("&Outline"), QLatin1String("outlineDock"), QKeySequence(Qt::Key_F6));
 
     m_outlineView = new TreeView(Model::Document::ExpansionRole, this);
@@ -3074,6 +3198,36 @@ void MainWindow::createDocks()
     connect(m_propertiesView->horizontalHeader(), SIGNAL(sectionCountChanged(int,int)), SLOT(on_properties_sectionCountChanged()));
 
     m_propertiesDock->setWidget(m_propertiesView);
+
+    //______________________________________________________________
+    // verify signature
+    m_detailsSignatureDock = createDock(tr("&Verify-Signature"), QLatin1String("verifySignature-Dock"), QKeySequence(Qt::Key_F12));
+    //m_detailsSignatureDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    //QStringList itens;
+    //m_detailsSignatureView = new QListWidget(m_detailsSignatureDock);
+    m_detailsSignatureView = new QTableView(this);
+    m_detailsSignatureView->setAlternatingRowColors(true);
+    m_detailsSignatureView->setTabKeyNavigation(false);
+    m_detailsSignatureView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_detailsSignatureView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+
+        //prueba->addItems(QStringList() << verify_signature().toStdString());
+//    QStringList itens;
+//    itens << "Cargar archivo PDF para verificar la firma ";
+////    for(int i = 0; i<1; i++) {
+
+////            itens << "Cargar archivo PDF para verificar la firma " + QString::number(i);
+////        }
+//    m_detailsSignatureView->addItems(itens);
+
+//    m_detailsSignatureDock->setWidget(m_detailsSignatureView);
+
+
+   connect(m_detailsSignatureView->horizontalHeader(), SIGNAL(sectionCountChanged(int,int)), SLOT(on_detailsSignatureView_sectionCountChanged()));
+   //connect(m_detailsSignatureView, SIGNAL(valueChanged(int)), SLOT(on_detailsSignatureView_sectionCountChanged()));
+
+    m_detailsSignatureDock->setWidget(m_detailsSignatureView);
+    //______________________________________________________________
 
     // thumbnails
 
@@ -3133,7 +3287,7 @@ void MainWindow::createMenus()
         setToolButtonMenu(m_fileToolBar, m_openInNewTabAction, m_recentlyUsedMenu);
     }
 
-    m_fileMenu->addActions(QList< QAction* >() << m_refreshAction << m_saveCopyAction << m_saveAsAction << m_printAction);
+    m_fileMenu->addActions(QList< QAction* >() << m_refreshAction << m_saveCopyAction << m_saveAsAction << m_printAction << m_verify_signature);
     m_fileMenu->addSeparator();
     m_fileMenu->addAction(m_exitAction);
 
@@ -3173,7 +3327,7 @@ void MainWindow::createMenus()
     toolBarsMenu->addActions(QList< QAction* >() << m_fileToolBar->toggleViewAction() << m_editToolBar->toggleViewAction() << m_viewToolBar->toggleViewAction());
 
     QMenu* docksMenu = m_viewMenu->addMenu(tr("&Docks"));
-    docksMenu->addActions(QList< QAction* >() << m_outlineDock->toggleViewAction() << m_propertiesDock->toggleViewAction() << m_thumbnailsDock->toggleViewAction() << m_bookmarksDock->toggleViewAction());
+    docksMenu->addActions(QList< QAction* >() << m_outlineDock->toggleViewAction() << m_propertiesDock->toggleViewAction() << m_thumbnailsDock->toggleViewAction() << m_bookmarksDock->toggleViewAction() << m_detailsSignatureDock->toggleViewAction());
 
     if(s_settings->mainWindow().extendedSearchDock())
     {
@@ -3410,6 +3564,393 @@ void MainWindowAdaptor::closeAllTabs()
 void MainWindowAdaptor::closeAllTabsButCurrentTab()
 {
     mainWindow()->on_closeAllTabsButCurrentTab_triggered();
+}
+
+// agregando funciones para la verificación de la firma electrónica
+
+const char * getReadableSigState(SignatureValidationStatus sig_vs)
+{
+  switch(sig_vs) {
+    case SIGNATURE_VALID:
+      //return "Signature is Valid.";
+      return "Firma válida.";
+
+    case SIGNATURE_INVALID:
+      //return "Signature is Invalid.";
+      return "Firma inválida.";
+
+    case SIGNATURE_DIGEST_MISMATCH:
+      //return "Digest Mismatch.";
+      return "Digest Mismatch.";
+
+    case SIGNATURE_DECODING_ERROR:
+      //return "Document isn't signed or corrupted data.";
+      return "El documento no está firmado o datos dañados.";
+
+    case SIGNATURE_NOT_VERIFIED:
+      //return "Signature has not yet been verified.";
+      return "Firma todavía no se ha verificado.";
+
+    default:
+      //return "Unknown Validation Failure.";
+      return "Desconocido fallo de validación.";
+  }
+}
+
+const char * getReadableCertState(CertificateValidationStatus cert_vs)
+{
+  switch(cert_vs) {
+    case CERTIFICATE_TRUSTED:
+      //return "Certificate is Trusted.";
+      return "Certificado es de confianza";
+
+    case CERTIFICATE_UNTRUSTED_ISSUER:
+      //return "Certificate issuer isn't Trusted.";
+      return "Emisor del certificado no es de confianza";
+
+    case CERTIFICATE_UNKNOWN_ISSUER:
+      //return "Certificate issuer is unknown.";
+      return "Emisor de certificado es desconocido";
+
+    case CERTIFICATE_REVOKED:
+      //return "Certificate has been Revoked.";
+      return "Certificado ha sido revocado.";
+
+    case CERTIFICATE_EXPIRED:
+      //return "Certificate has Expired";
+      return "Certificado ha caducado";
+
+    case CERTIFICATE_NOT_VERIFIED:
+      //return "Certificate has not yet been verified.";
+      return "Certificado aún no ha sido verificado.";
+
+    default:
+      //return "Unknown issue with Certificate or corrupted data.";
+      return "Problema desconocido con el certificado o datos dañados.";
+  }
+}
+
+char *getReadableTime(time_t unix_time)
+{
+  char * time_str = (char *) gmalloc(64);
+  strftime(time_str, 64, "%b %d %Y %H:%M:%S", localtime(&unix_time));
+  return time_str;
+}
+
+static GBool printVersion = gFalse;
+static GBool printHelp = gFalse;
+static GBool dontVerifyCert = gFalse;
+
+//static const ArgDesc argDesc[] = {
+//  {"-nocert", argFlag,     &dontVerifyCert,     0,
+//   "don't perform certificate validation"},
+
+//  {"-v",      argFlag,     &printVersion,  0,
+//   "print copyright and version info"},
+//  {"-h",      argFlag,     &printHelp,     0,
+//   "print usage information"},
+//  {"-help",   argFlag,     &printHelp,     0,
+//   "print usage information"},
+//  {"-?",      argFlag,     &printHelp,     0,
+//   "print usage information"},
+//  {NULL}
+//};
+
+//fin de agregar funciones para la verificación de firma electrónica
+
+//QString MainWindow::verify_signature() {
+//QStringList MainWindow::verify_signature() {
+
+QStandardItemModel *MainWindow::view_table_verify_signature() {
+
+    qDebug("view_table_verify_signature");
+    //m_tableVerifySign = new QTableView();
+
+    char *time_str = NULL;
+    PDFDoc *doc = NULL;
+    unsigned int sigCount;
+    GooString * fileName = NULL;
+    SignatureInfo *sig_info = NULL;
+    std::vector<FormWidgetSignature*> sig_widgets;
+    globalParams = new GlobalParams();
+
+    int exitCode = 99;
+    // GBool ok;
+
+    QString newfile = currentTab()->fileInfo().absoluteFilePath();
+
+    qDebug("***fileName signatures: |%s|",newfile.toUtf8().data());
+    fileName = new GooString(newfile.toUtf8().data());  // le paso el path del documento PDF para abrirlo
+
+    // open PDF file
+    doc = PDFDocFactory().createPDFDoc(*fileName, NULL, NULL); //abre el documento
+    if (!doc->isOk()) {
+        exitCode = 1;
+        qDebug(".......error");
+     }
+
+     sig_widgets = doc->getSignatureWidgets();
+     sigCount = sig_widgets.size();
+
+     if( sigCount >= 1 ) { //El documento tiene firma electronica
+         int numColumns = 2;
+         int numRows = sigCount*5;
+         QStandardItemModel* model = new QStandardItemModel(numRows, numColumns);
+         QString rowtype, rowvalue;
+         int countRow = 0;
+
+         for (unsigned int i = 0; i < sigCount; i++) {
+              sig_info = sig_widgets.at(i)->validateSignature(!dontVerifyCert, false);
+
+              //**Sección para llenar la tabla
+              rowtype = trUtf8("Firma número %1").arg(i+1);
+              QStandardItem* item = new QStandardItem(rowtype);
+              model->setItem(countRow, 0, item);
+              countRow ++;
+              rowtype = trUtf8("  - Nombre común ");
+              item = new QStandardItem(rowtype);
+              model->setItem(countRow, 0, item);
+              rowvalue = sig_info->getSignerName();
+              item = new QStandardItem(rowvalue);
+              model->setItem(countRow, 1, item);
+              countRow ++;
+              rowtype = trUtf8("  - Hora de la firma ");
+              item = item = new QStandardItem(rowtype);
+              model->setItem(countRow, 0, item);
+              rowvalue = getReadableTime(sig_info->getSigningTime());
+              item = new QStandardItem(rowvalue);
+              model->setItem(countRow, 1, item);
+              countRow ++;
+              rowtype = trUtf8("  - Validación de la firma ");
+              item = item = new QStandardItem(rowtype);
+              model->setItem(countRow, 0, item);
+              rowvalue = trUtf8(getReadableSigState(sig_info->getSignatureValStatus()));
+              item = new QStandardItem(rowvalue);
+              model->setItem(countRow, 1, item);
+              countRow ++;
+              rowtype = trUtf8("  - Validación del certificado ");
+              item = item = new QStandardItem(rowtype);
+              model->setItem(countRow, 0, item);
+              rowvalue = getReadableCertState(sig_info->getCertificateValStatus());
+              item = new QStandardItem(rowvalue);
+              model->setItem(countRow, 1, item);
+              countRow ++;
+          }
+         return model;
+      }
+
+     else { //El documento no tiene firma
+         QStandardItemModel* model = new QStandardItemModel(1,1);
+         QString rowtype = trUtf8("El documento no posee firma electrónica");
+         QStandardItem* item = new QStandardItem(rowtype);
+         model->setItem(0, 0, item);
+         return model;
+     }
+}
+
+QStandardItemModel *MainWindow::verify_signature() {
+    qDebug("verify_signature");
+    m_tableVerifySign = new QTableView();
+
+
+    char *time_str = NULL;
+    PDFDoc *doc = NULL;
+    unsigned int sigCount;
+    GooString * fileName = NULL;
+    SignatureInfo *sig_info = NULL;
+    std::vector<FormWidgetSignature*> sig_widgets;
+    globalParams = new GlobalParams();
+
+    int exitCode = 99;
+    // GBool ok;
+
+    QString newfile = currentTab()->fileInfo().absoluteFilePath();
+
+    qDebug("***fileName signatures: |%s|",newfile.toUtf8().data());
+    fileName = new GooString(newfile.toUtf8().data());  // le paso el path del documento PDF para abrirlo
+
+    // open PDF file
+    doc = PDFDocFactory().createPDFDoc(*fileName, NULL, NULL); //abre el documento
+    //qDebug(".......1");
+    if (!doc->isOk()) {
+        exitCode = 1;
+        qDebug(".......error");
+        //return "Error";
+        //goto end;
+     }
+
+     //qDebug(".......3");
+     sig_widgets = doc->getSignatureWidgets();
+     sigCount = sig_widgets.size();
+     int numColumns = 2;
+     int numRows = sigCount*5;
+
+     QStandardItemModel* model = new QStandardItemModel(numRows, numColumns);
+
+      QStringList itens;
+      //QStandardItem* item;
+      QString rowtype, rowvalue;
+      int countRow = 0;
+      QString newmessage = trUtf8("Número de firmas: %1 ").arg(sigCount);
+      newmessage += "\n \n";
+      for (unsigned int i = 0; i < sigCount; i++) {
+          sig_info = sig_widgets.at(i)->validateSignature(!dontVerifyCert, false);
+          //qDebug("Firma %d ", i+1);
+          newmessage += trUtf8("Firma número %1").arg(i+1);
+          newmessage += "\n";
+          //qDebug(sig_info->getSignerName());
+          newmessage += trUtf8("  - Nombre común: %1  \n").arg(sig_info->getSignerName());
+          newmessage += trUtf8("  - Hora de la firma: %1f \n").arg(time_str = getReadableTime(sig_info->getSigningTime()));
+          newmessage += trUtf8("  - Validación de la firma: %1  \n").arg(getReadableSigState(sig_info->getSignatureValStatus()));
+          newmessage += trUtf8("  - Validación del certificado: %1").arg(getReadableCertState(sig_info->getCertificateValStatus()));
+          newmessage += "  \n";
+          itens << trUtf8("Firma número %1").arg(i+1) + trUtf8("  - Nombre común: %1  \n").arg(sig_info->getSignerName()) + trUtf8("  - Hora de la firma: %1f \n").arg(time_str = getReadableTime(sig_info->getSigningTime())) + trUtf8("  - Validación de la firma: %1  \n").arg(getReadableSigState(sig_info->getSignatureValStatus())) + trUtf8("  - Validación del certificado: %1").arg(getReadableCertState(sig_info->getCertificateValStatus()));
+
+          //**Sección para llenar la tabla
+
+          rowtype = "Firma " + QString::number(i + 1);
+          QStandardItem* item = new QStandardItem(rowtype);
+          model->setItem(countRow, 0, item);
+          countRow ++;
+          rowtype = trUtf8("  - Nombre común ");
+          item = new QStandardItem(rowtype);
+          model->setItem(countRow, 0, item);
+          rowvalue = sig_info->getSignerName();
+          item = new QStandardItem(rowvalue);
+          model->setItem(countRow, 1, item);
+          countRow ++;
+          rowtype = trUtf8("  - Hora de la firma ");
+          item = item = new QStandardItem(rowtype);
+          model->setItem(countRow, 0, item);
+          rowvalue = getReadableTime(sig_info->getSigningTime());
+          item = new QStandardItem(rowvalue);
+          model->setItem(countRow, 1, item);
+          countRow ++;
+          rowtype = trUtf8("  - Validación de la firma ");
+          item = item = new QStandardItem(rowtype);
+          model->setItem(countRow, 0, item);
+          rowvalue = trUtf8(getReadableSigState(sig_info->getSignatureValStatus()));
+          item = new QStandardItem(rowvalue);
+          model->setItem(countRow, 1, item);
+          countRow ++;
+          rowtype = trUtf8("  - Validación del certificado ");
+          item = item = new QStandardItem(rowtype);
+          model->setItem(countRow, 0, item);
+          rowvalue = getReadableCertState(sig_info->getCertificateValStatus());
+          item = new QStandardItem(rowvalue);
+          model->setItem(countRow, 1, item);
+          countRow ++;
+      }
+      //return newmessage;
+      qDebug()<<itens;
+      qDebug("Saliendo**************************************************************************************************************");
+      //m_tableVerifySign->setModel(model);
+      //return itens;
+      return model;
+ }
+
+void MainWindow::on_verify_signature() {
+
+    qDebug("Entro a on_verify_signature()");
+    verify_signature();
+    char *time_str = NULL;
+    PDFDoc *doc = NULL;
+    unsigned int sigCount;
+    GooString * fileName = NULL;
+    SignatureInfo *sig_info = NULL;
+    std::vector<FormWidgetSignature*> sig_widgets;
+    globalParams = new GlobalParams();
+
+    int exitCode = 99;
+    // GBool ok;
+
+    QString newfile = currentTab()->fileInfo().absoluteFilePath();
+
+    qDebug("***fileName signatures: |%s|",newfile.toUtf8().data());
+    fileName = new GooString(newfile.toUtf8().data());  // le paso el path del documento PDF para abrirlo
+
+    // open PDF file
+    doc = PDFDocFactory().createPDFDoc(*fileName, NULL, NULL); //abre el documento
+    //qDebug(".......1");
+    if (!doc->isOk()) {
+        exitCode = 1;
+        qDebug(".......error");
+        return;
+        //goto end;
+     }
+
+     qDebug(".......3");
+     sig_widgets = doc->getSignatureWidgets();
+     sigCount = sig_widgets.size();
+
+
+      QString newmessage = trUtf8("Número de firmas: %1 ").arg(sigCount);
+      newmessage += "\n \n";
+      //qDebug("fileName number of signatures: %d", sigCount);
+      //qDebug("****************************");
+      //qDebug(fileName->getCString());
+
+      //***********************
+//      if (sigCount >= 1) {
+//          //newmessage =+ trUtf8("Digital Signature Info of: %s\n").arg(fileName->getCString());
+//          //qDebug(fileName->getCString()); //path del archivo que se abrio
+//          qDebug("El archivo contiene firma electrónica");
+//          //printf("Digital Signature Info of: %s\n", fileName->getCString());
+//        } else {
+//          //newmessage =+ trUtf8("File '%s' does not contain any signatures\n").arg(fileName->getCString());
+//          qDebug("El archivo no contiene firma electrónica");
+//          //printf("File '%s' does not contain any signatures\n", fileName->getCString());
+//          exitCode = 2;
+//          return;
+//          //goto end;
+//        }
+
+        for (unsigned int i = 0; i < sigCount; i++) {
+          sig_info = sig_widgets.at(i)->validateSignature(!dontVerifyCert, false);
+          qDebug("Firma %d ", i+1);
+          //printf("Signature #%u:\n", i+1);
+          newmessage += trUtf8("Firma número %1").arg(i+1);
+          newmessage += "\n";
+          //qDebug("entro al for: %d", i);
+          //qDebug(i+1);
+          //printf("  - Signer Certificate Common Name: %s\n", sig_info->getSignerName());
+          qDebug(sig_info->getSignerName());
+          newmessage += trUtf8("  - Nombre común: %1  \n").arg(sig_info->getSignerName());
+          //newmessage += "  \n";
+          //printf("  - Signing Time: %s\n", time_str = getReadableTime(sig_info->getSigningTime()));
+          newmessage += trUtf8("  - Hora de la firma: %1f \n").arg(time_str = getReadableTime(sig_info->getSigningTime()));
+          //newmessage += "  \n";
+          //newmessage =+ trUtf8("  - Signing Time: %s\n").arg(getReadableTime(sig_info->getSigningTime()));
+          //printf("  - Signature Validation: %s\n", getReadableSigState(sig_info->getSignatureValStatus()));
+          newmessage += trUtf8("  - Validación de la firma: %1  \n").arg(trUtf8(getReadableSigState(sig_info->getSignatureValStatus())));
+
+          //newmessage =+ trUtf8("  - Signature Validation: %s\n").arg(getReadableSigState(sig_info->getSignatureValStatus()));
+          //gfree(time_str);
+          //if (sig_info->getSignatureValStatus() != SIGNATURE_VALID || dontVerifyCert) {
+            //continue;
+          //}
+          //printf("  - Certificate Validation: %s\n", getReadableCertState(sig_info->getCertificateValStatus()));
+          newmessage += trUtf8("  - Validación del certificado: %1").arg(getReadableCertState(sig_info->getCertificateValStatus()));
+          newmessage += "  \n";
+        }
+
+    //***********************
+
+
+    QString my_msg;
+    my_msg = " Signature #1: \n - Signer Certificate Common Name: Murachi \n - Signing Time: Apr 10 2015 08:26:08  \n - Signature Validation: Signature is Valid. \n - Certificate Validation: Certificate issuer is unknown. \n Signature #2: \n - Signer Certificate Common Name: Juan Hilario \n  - Signing Time: Apr 10 2015 08:27:42 \n - Signature Validation: Signature is Valid. \n  - Certificate Validation: Certificate has Expired \n  Signature #3: \n - Signer Certificate Common Name: Murachi \n - Signing Time: Apr 10 2015 08:48:18 \n - Signature Validation: Signature is Valid. \n - Certificate Validation: Certificate issuer is unknown";
+
+    QMessageBox my_msg_Box;
+    int cont = 1;
+    if(sigCount == 0) {
+        my_msg_Box.setText("El documento no esta firmado");
+        my_msg_Box.exec();
+    }
+    else {
+        my_msg_Box.setText("El documento esta firmado electronicamente");
+        my_msg_Box.setDetailedText(newmessage);
+        my_msg_Box.exec();
+    }
 }
 
 bool MainWindowAdaptor::closeTab(const QString& absoluteFilePath)

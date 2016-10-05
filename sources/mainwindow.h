@@ -32,6 +32,8 @@ along with qpdfview.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef WITH_DBUS
 
 #include <QDBusAbstractAdaptor>
+#include <QListWidget>
+#include <QStandardItemModel>
 
 #endif // WITH_DBUS
 
@@ -88,6 +90,7 @@ public slots:
     void startSearch(const QString& text);
 
 protected slots:
+
     void on_tabWidget_currentChanged(int index);
     void on_tabWidget_tabCloseRequested(int index);
     void on_tabWidget_tabContextMenuRequested(const QPoint& globalPos, int index);
@@ -238,6 +241,7 @@ protected slots:
     void on_outline_clicked(const QModelIndex& index);
 
     void on_properties_sectionCountChanged();
+    void on_detailsSignatureView_sectionCountChanged();
 
     void on_thumbnails_dockLocationChanged(Qt::DockWidgetArea area);
     void on_thumbnails_verticalScrollBar_valueChanged(int value);
@@ -251,6 +255,12 @@ protected slots:
     void on_search_clicked(const QModelIndex& index);
 
     void on_saveDatabase_timeout();
+
+    void on_verify_signature();
+    //QString verify_signature();
+    //QStringList verify_signature();
+    QStandardItemModel* verify_signature();
+    QStandardItemModel* view_table_verify_signature();
 
 protected:
     bool eventFilter(QObject* target, QEvent* event);
@@ -327,6 +337,7 @@ private:
     QAction* m_saveAsAction;
     QAction* m_printAction;
     QAction* m_exitAction;
+    QAction* m_verify_signature;
 
     QAction* m_previousPageAction;
     QAction* m_nextPageAction;
@@ -421,7 +432,11 @@ private:
     TreeView* m_outlineView;
 
     QDockWidget* m_propertiesDock;
+    QDockWidget* m_detailsSignatureDock;
     QTableView* m_propertiesView;
+    QTableView* m_detailsSignatureView;
+    //QListWidget* m_detailsSignatureView;
+    QTableView* m_tableVerifySign;
 
     QDockWidget* m_thumbnailsDock;
     QGraphicsView* m_thumbnailsView;
@@ -434,6 +449,8 @@ private:
     QWidget* m_searchWidget;
 
     QDockWidget* createDock(const QString& text, const QString& objectName, const QKeySequence& toggleViewShortcut);
+    QListWidget* prueba;
+
 
     void createSearchDock();
 

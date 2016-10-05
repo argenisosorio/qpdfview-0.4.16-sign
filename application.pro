@@ -275,5 +275,9 @@ appdata.path = $${APPDATA_INSTALL_PATH}
 INSTALLS += target data manual icon launcher appdata
 
 INCLUDEPATH += icons
+INCLUDEPATH += /home/pbuitrago/Cenditel/Seguridad/POA-2016/programas/poppler-0.45.0
+INCLUDEPATH += /home/pbuitrago/Cenditel/Seguridad/POA-2016/programas/poppler-0.45.0/poppler
+#QMAKE_LIBDIR += /usr/local/lib
+
 win32:RC_FILE = icons/qpdfview_win32.rc
 os2:RC_FILE = icons/qpdfview_os2.rc
